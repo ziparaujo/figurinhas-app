@@ -44,3 +44,19 @@ O iOS não tem API de importação de figurinhas como o ContentProvider do Andro
 - [Fotos grandes consomem memória] → reduzir a foto ao carregar para uma dimensão máxima suficiente para o zoom e descartá-la após salvar.
 - [Build com Apple ID gratuito expira em 7 dias] → aceitável para uso pessoal; reinstalar pelo Xcode.
 - [Sem emoji editável, o WhatsApp sugere a figurinha para um único emoji] → aceito na v1, modelo já preparado.
+
+## Resultado do spike (tarefas 1.1 a 1.5)
+
+Validado em iPhone físico (iPhone 16) com WhatsApp instalado:
+
+- **Biblioteca:** `Swift-WebP` 0.7.0 (produto `WebP`, baseado em libwebp 1.6.0), atrás do protocolo `WebPEncoding` (`LibWebPEncoder`). Preset `.picture`, qualidade 80.
+- **Tamanhos:** figurinhas de teste com 2454, 1912 e 5420 bytes (imagens sintéticas, bem abaixo dos 100KB); ícone PNG 96x96 com 1896 bytes; payload do pasteboard com 16119 bytes.
+- **Resultado:** `canOpenURL(whatsapp://)` retornou verdadeiro, o WhatsApp pediu confirmação e exibiu as 3 figurinhas corretamente, inclusive a com transparência. Não foi necessário trocar a biblioteca.
+- **Não coberto pelo spike:** fotos reais detalhadas, que ainda exigem a busca de qualidade da decisão 5.
+- **Payload conferido no repositório oficial `WhatsApp/stickers`:** `identifier`, `name`, `publisher` (obrigatório), `tray_image` (PNG base64) e `stickers[]` com `image_data` (WebP base64) e `emojis`. `name`, `publisher` e `identifier` têm no máximo 128 caracteres.
+- **Autor do pacote (v1):** valor padrão "Rod", guardado no modelo do pacote. Sem tela para alterá-lo na v1; o modelo já permite editar depois.
+
+## Notas da implementação
+
+- **Cor dos PNGs do ícone:** o `UIGraphicsImageRenderer` usa por padrão a faixa de cor estendida em aparelhos com tela P3, e o PNG do ícone saiu com 16 bits por canal, passando dos 50KB no iPhone (o simulador não reproduz). `StickerPackExporter.resized` fixa `preferredRange = .standard` para gerar 8 bits por canal. Não há teste automatizado para isso, só a verificação em aparelho.
+- **Limite de 128 caracteres:** o WhatsApp limita `name`, `publisher` e `identifier` a 128 caracteres. A exportação recusa o pacote com `ExportError.textTooLong` quando o nome ou o autor passa disso; o identificador é um UUID e não é afetado.
