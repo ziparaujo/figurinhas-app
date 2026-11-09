@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct stickersApp: App {
@@ -13,5 +14,6 @@ struct stickersApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: [StickerPack.self, Sticker.self])
     }
 }
