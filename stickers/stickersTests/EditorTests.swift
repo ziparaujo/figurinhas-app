@@ -114,6 +114,59 @@ struct EditorTests {
         #expect(left.rgba(400, 256).a == 0)
     }
 
+    @Test func textScaleIsClamped() {
+        let state = StickerEditorState()
+        #expect(state.textScale == 1)
+        state.setTextScale(100)
+        #expect(state.textScale == StickerEditorState.textScaleRange.upperBound)
+        state.setTextScale(0.001)
+        #expect(state.textScale == StickerEditorState.textScaleRange.lowerBound)
+        state.setTextScale(1.5)
+        #expect(state.textScale == 1.5)
+    }
+
+    @Test func isOnTextFollowsPositionAndScale() {
+        let state = StickerEditorState()
+        state.text = "Oi"
+        state.setText(position: CGPoint(x: 256, y: 256))
+        #expect(state.isOnText(CGPoint(x: 256, y: 256)))
+        #expect(state.isOnText(CGPoint(x: 455, y: 256)))   // borda: 256 + 200
+        #expect(!state.isOnText(CGPoint(x: 460, y: 256)))
+        #expect(!state.isOnText(CGPoint(x: 256, y: 330)))  // 256 + 70 é a borda vertical
+
+        state.setTextScale(0.5)
+        #expect(!state.isOnText(CGPoint(x: 400, y: 256)))
+        #expect(state.isOnText(CGPoint(x: 300, y: 256)))
+
+        state.setTextScale(2)
+        #expect(state.isOnText(CGPoint(x: 256, y: 380)))
+    }
+
+    @Test func isOnTextIsFalseWithoutText() {
+        let state = StickerEditorState()
+        #expect(!state.isOnText(state.textPosition))
+    }
+
+    @Test func largerTextScaleCoversMoreWhitePixels() throws {
+        func whiteCount(scale: CGFloat) throws -> Int {
+            let canvas = StickerCanvasView(text: "A", textPosition: CGPoint(x: 256, y: 256), textScale: scale)
+            let pixels = try Pixels(try #require(StickerRenderer.render(canvas)))
+            var white = 0, black = 0
+            for y in 0..<pixels.height {
+                for x in 0..<pixels.width {
+                    let p = pixels.rgba(x, y)
+                    if p.a == 255 && p.r > 240 && p.g > 240 && p.b > 240 { white += 1 }
+                    else if p.a == 255 && p.r < 30 && p.g < 30 && p.b < 30 { black += 1 }
+                }
+            }
+            #expect(black > 0)
+            return white
+        }
+        let normal = try whiteCount(scale: 1)
+        let doubled = try whiteCount(scale: 2)
+        #expect(doubled > normal * 2)
+    }
+
     @Test func cannotSaveWithoutPhoto() {
         let state = StickerEditorState()
         #expect(state.canSave == false)

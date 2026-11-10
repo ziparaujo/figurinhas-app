@@ -11,8 +11,13 @@ struct StickerEditorView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var baseOffset: CGSize = .zero
     @State private var baseZoom: CGFloat = 1
+    @State private var baseTextScale: CGFloat = 1
+    @State private var pinchTarget: PinchTarget?
     @State private var baseTextPosition: CGPoint = StickerCanvasView.defaultTextPosition
     @State private var errorMessage: String?
+
+    /// Quem recebe a pinça atual; decidido no início do gesto e mantido até o fim.
+    private enum PinchTarget { case text, photo }
 
     var body: some View {
         NavigationStack {
@@ -57,7 +62,7 @@ struct StickerEditorView: View {
             .overlay {
                 if !state.text.isEmpty {
                     Color.clear
-                        .frame(width: 400, height: 140)
+                        .frame(width: state.textHitRect.width, height: state.textHitRect.height)
                         .contentShape(Rectangle())
                         .position(state.textPosition)
                         .highPriorityGesture(textDrag(scale: scale))
@@ -65,7 +70,7 @@ struct StickerEditorView: View {
             }
             .background(Color.gray.opacity(0.2))
             .gesture(photoDrag(scale: scale))
-            .simultaneousGesture(photoZoom)
+            .simultaneousGesture(pinch)
             .scaleEffect(scale)
     }
 
@@ -79,10 +84,25 @@ struct StickerEditorView: View {
             .onEnded { _ in baseOffset = state.photoOffset }
     }
 
-    private var photoZoom: some Gesture {
+    // `startLocation` é o ponto central dos dedos no espaço local do canvas (512 pt, pois o gesto vem antes do scaleEffect).
+    private var pinch: some Gesture {
         MagnifyGesture()
-            .onChanged { state.setZoom(baseZoom * $0.magnification) }
-            .onEnded { _ in baseZoom = state.photoZoom }
+            .onChanged { value in
+                if pinchTarget == nil {
+                    pinchTarget = state.isOnText(value.startLocation) ? .text : .photo
+                }
+                switch pinchTarget {
+                case .text: state.setTextScale(baseTextScale * value.magnification)
+                default: state.setZoom(baseZoom * value.magnification)
+                }
+            }
+            .onEnded { _ in
+                switch pinchTarget {
+                case .text: baseTextScale = state.textScale
+                default: baseZoom = state.photoZoom
+                }
+                pinchTarget = nil
+            }
     }
 
     private func textDrag(scale: CGFloat) -> some Gesture {
