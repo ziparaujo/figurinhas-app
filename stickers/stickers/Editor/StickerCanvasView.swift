@@ -9,6 +9,7 @@ struct StickerCanvasView: View {
     var photoZoom: CGFloat = 1
     var text: String = ""
     var textPosition: CGPoint = StickerCanvasView.defaultTextPosition
+    var textScale: CGFloat = 1
 
     static let defaultTextPosition = CGPoint(x: side / 2, y: side * 0.86)
 
@@ -23,7 +24,7 @@ struct StickerCanvasView: View {
                     .offset(photoOffset)
             }
             if !text.isEmpty {
-                OutlinedText(text: text).position(textPosition)
+                OutlinedText(text: text).scaleEffect(textScale).position(textPosition)
             }
         }
         .frame(width: Self.side, height: Self.side)
